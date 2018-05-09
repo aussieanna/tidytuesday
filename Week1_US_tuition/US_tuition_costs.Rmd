@@ -1,0 +1,137 @@
+---
+title: "US tuition"
+author: "Anna Reynolds"
+date: "4 April 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(hrbrthemes)
+library(viridis)
+library(RColorBrewer)
+library(geofacet)
+library(plotly)
+library(ggridges)
+library(crosstalk)
+```
+
+## US tuition costs - Tidy Tuesday
+
+Tidy Tuesday week 1 is a data set on the average cost of tuition in the US over time. The data is in wide untidy form and must be tidied so it can then be plotted. To avoid problems with importing the data as an .xlsx file and R changing the cost to a character variable I changed the format in Excel and saved it as a .csv file.
+
+### Import the data
+
+```{r import data set}
+tuition_data <- read.csv('us_avg_tuition.csv', stringsAsFactors = FALSE, header=TRUE, sep=",", na.strings="M") %>% mutate(percent=(X2015.16-X2010.11)/X2015.16*100)
+head(tuition_data)
+```
+
+## Use tidyr to make the data tidy
+
+The gather function allows you to make the data set go from wide to long, i.e. instead of having a column for each financial year there will be a financial year column and a column containing the cost.
+
+```{r tidy, echo=TRUE}
+tuition_tidy <- tuition_data %>% gather(X2004.05:X2015.16, key="year", value = "cost") %>% mutate(year=str_replace(year, "X2004.05", "2004-05")) %>% mutate(year=str_replace(year, "X2004.05", "2004-05")) %>% mutate(year=str_replace(year, "X2005.06", "2005-06")) %>% mutate(year=str_replace(year, "X2006.07", "2006-07")) %>% mutate(year=str_replace(year, "X2007.08", "2007-08")) %>% mutate(year=str_replace(year, "X2008.09", "2008-09")) %>% mutate(year=str_replace(year, "X2009.10", "2009-10")) %>% mutate(year=str_replace(year, "X2010.11", "2010-11")) %>% mutate(year=str_replace(year, "X2011.12", "2011-12")) %>% mutate(year=str_replace(year, "X2012.13", "2012-13")) %>% mutate(year=str_replace(year, "X2013.14", "2013-14")) %>% mutate(year=str_replace(year, "X2014.15", "2014-15")) %>% mutate(year=str_replace(year, "X2015.16", "2015-16"))
+head(tuition_tidy)
+```
+
+The data is now tidy and ready to graph. Here is a bar chart for the most recent year by state.
+
+```{r bar chart, fig.height=8}
+tuition_1516 <- filter(tuition_tidy, year == "2015-16") 
+arrange(tuition_1516,desc(cost))
+bar <- ggplot(tuition_1516, aes(x = reorder(State, cost), y = cost, fill = cost)) + geom_bar(stat = "identity") + coord_flip() + scale_fill_viridis(direction=-1) + theme_minimal() + labs(x="State", y="Cost ($US)",
+       title="Average tuition cost, USA, 2015-16",
+       caption="Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+bar
+```
+
+
+
+New Hampshire had the highest and Wyoming had the lowest average cost in 2015-16.
+
+## Trends over time
+Lets have a look at how the cost of tuition has changed over time in each state.
+```{r line chart, fig.height=8}
+ggplot(tuition_tidy, aes(x = factor(year), y = cost, group = State)) + geom_line(color = "thistle3", size = 1.25) + theme_minimal() + labs(x="Year", y="Cost ($US)",
+       title="Average tuition cost, USA, 2015-16",
+       caption="Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+
+```
+
+###Here is an interactive version of the plot
+```{r interactive line chart, warning=FALSE, message=FALSE}
+p1 <- ggplot(tuition_tidy, aes(x = factor(year), y = cost, group = State)) + geom_line(color = "thistle3", size = 1.25) + theme_minimal() + labs(x="Year", y="Cost ($US)",
+       title="Average tuition cost, USA, 2015-16",
+       caption="Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+ggplotly(p1) %>% layout(autosize = F, width = 800, height = 600)
+```
+
+It looks like there is an overall trend towards increasing cost over time, except for maybe a couple of states.
+
+```{r geofacet, fig.width=12, fig.height=8}
+ggplot(tuition_tidy, aes(year, cost, group = State)) +
+  geom_line(color = "steelblue") +
+  facet_geo(~ State, grid = "us_state_grid2", label = "name") + theme ( axis.text.x = element_blank()) +
+    labs(title = "Average tuition cost, USA, 2004-05 to 2015-16",
+    caption = "Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/",
+    x = "Year",
+    y = "Cost ($US)") +
+  theme(strip.text.x = element_text(size = 6))
+```
+Average tuition costs in the North East are increasing over time. States in the Mid West are not increasing as much as other states.
+
+##Distribution of tuition costs for select states
+```{r ridge plots, fig.width=8, warning=FALSE, message=FALSE}
+s <- filter(tuition_tidy, State == "New Hampshire" | State == "Hawaii" | State == "Vermont" | State == "Wyoming")
+ggplot(s, aes(x = cost, y = State)) + geom_density_ridges(scale = 1, color="#FFFFFF", fill="#56B4E9") + theme_minimal() + labs(subtitle = "Average tuition cost distribution, Selected States, USA, 2004-05 to 2015-16",
+    caption = "Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+
+```
+
+##Map of the percent change in tuition between 2010-11 and 2015-16
+
+```{r choropleth map, warning=FALSE, message=FALSE}
+states <- map_data("state") #Get US state geo information
+data <- tuition_1516 %>% mutate(region = tolower(State))
+# Join the values to the map using region
+us_map <- left_join(states, data)
+
+#generate the map
+m2 <- ggplot() + geom_map(aes(x = long, y = lat, map_id = region), data = us_map,
+           map = us_map, fill = "#ffffff", color = "#ffffff", size = 0.15) + geom_map(aes(fill = percent, map_id = region),
+           map = us_map, data = us_map,
+           color = "#ffffff", size = 0.15) +
+  viridis::scale_fill_viridis(name="Percent change", direction=-1) +
+  coord_map('albers', lat0 = 39, lat1 = 45) +
+  ggthemes::theme_map() +
+  theme(legend.position="bottom") +
+  labs(title = "Average tuition cost percent change, USA, 2010-11 to 2015-16",
+    caption = "Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+m2
+
+```
+
+
+```{r choropleth map 2015-16, warning=FALSE, message=FALSE}
+m3 <- ggplot() + geom_map(aes(x = long, y = lat, map_id = region), data = us_map,
+           map = us_map, fill = "#ffffff", color = "#ffffff", size = 0.15) + geom_map(aes(fill = cost, map_id = region),
+           map = us_map, data = us_map,
+           color = "#ffffff", size = 0.15) +
+  viridis::scale_fill_viridis(name="Cost", direction=-1) +
+  coord_map('albers', lat0 = 39, lat1 = 45) +
+  ggthemes::theme_map() +
+  theme(legend.position="bottom") +
+  labs(title = "Average tuition cost, USA, 2015-16",
+    caption = "Source: https://onlinembapage.com/average-tuition-and-educational-attainment-in-the-united-states/")
+m3
+```
+
+
+```{r output tidy data, echo=FALSE}
+#Lets output the tidy dataset for future use.
+write.csv(tuition_tidy, file = "us_tuition_tidy.csv")
+```
+
