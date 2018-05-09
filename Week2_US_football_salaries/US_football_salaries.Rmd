@@ -1,0 +1,47 @@
+---
+title: "Football salaries"
+author: "Anna Reynolds"
+date: "11 April 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(ggthemes)
+```
+
+## US footbal salaries
+
+Week 2 of Tidy Tuesday looks at a data set from FiveThirtyEight about US football player salaries by position (i.e. quarterback, running back etc.) from 2011 to 2018.
+
+### Import the data
+
+```{r import data}
+football <- readxl::read_excel('tidy_tuesday_week2.xlsx')
+head(football)
+```
+
+## Tidy the data
+
+
+```{r tidy, echo=T}
+football_tidy <- football %>% gather(Cornerback:`Wide Receiver`, key="position", value = "salary") %>% mutate(millions=salary/1000000)
+head(football_tidy)
+```
+
+The data is now tidy and ready to graph.
+```{r scatter, fig.width=8, warning=FALSE}
+ggplot(football_tidy, aes(x = year, y = millions)) + geom_point(position = position_jitter ( width = 0.3 , height = 0.06 ), alpha = 0.4 , shape = 16 , size = 1.5, color="grey" ) + facet_wrap(~position) + theme_minimal()
+
+```
+
+### Filter to top 16 salaries for each position in each year
+```{r top 16}
+football_16 <- football_tidy  %>% group_by(position, year) %>% top_n(n=16, wt = millions) %>% ungroup()
+
+```
+```{r scatter top 16, fig.height=8, message=FALSE, warning=FALSE}
+ggplot(football_16, aes(x = year, y = millions)) + geom_point(position = position_jitter ( width = 0.4 , height = 0.06 ), alpha = 0.4 , shape = 16 , size = 1.5, color="grey" ) + geom_smooth() + facet_wrap(~position) + theme_fivethirtyeight()
+
+```
