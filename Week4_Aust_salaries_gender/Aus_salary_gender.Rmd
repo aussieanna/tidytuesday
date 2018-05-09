@@ -1,0 +1,70 @@
+---
+title: "Australian average salaries"
+author: "Anna Reynolds"
+date: "24 April 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(hrbrthemes)
+library(viridis)
+library(RColorBrewer)
+library(plotly)
+library(ggalt)
+```
+
+## Australian average salaries by occupation and gender - Tidy Tuesday
+
+Tidy Tuesday week 4 is a data set containing average taxable incomes by gender in Australia in a .csv file.
+
+```{r import data, fig.height=8}
+salary_data <- read.csv('week4_australian_salary.csv', stringsAsFactors = FALSE, header=TRUE, sep=",", na.strings="M")
+salary_20 <-  salary_data %>% top_n(n=20, wt=average_taxable_income)
+
+ggplot(salary_20, aes(x = reorder(occupation, average_taxable_income), y = average_taxable_income, fill = gender)) + geom_bar(position = position_dodge ( 0.7 ), width = 0.5 , stat = "identity") + coord_flip() + theme_minimal() + labs(x="Occupation", y="Salary ($AUS)",
+       title="Top 20 Average salaries, Australia")
+```
+
+It would be nice to be able to make a dumbell plot with this data to show the gap in salaries by gender. The 'ggalt' package by hrbrmstr provides a geom_dumbell function.
+
+```{r geom_dumbell example}
+df <- data.frame(trt=LETTERS[1:5], l=c(20, 40, 10, 30, 50), r=c(70, 50, 30, 60, 80))
+
+ggplot(df, aes(y=trt, x=l, xend=r)) +
+  geom_dumbbell(size=3, color="#e3e2e1",
+                colour_x = "red", colour_xend = "dark blue") +
+  labs(x=NULL, y=NULL, title="ggplot2 geom_dumbbell plot example") +
+  theme_minimal() +
+  theme(panel.grid.major.x=element_line(size=0.05))
+```
+
+```{r top 20 dumbell, fig.height=8, fig.width=10}
+#Restrict data to top 20 male salaries 
+salary_data_spread <- salary_data %>% select(occupation, gender, average_taxable_income) %>% spread(gender, average_taxable_income) %>% mutate(fdiff=Female-Male, fdiffpct = as.integer(fdiff/Male*100)) %>% top_n(20, Male) %>% arrange(desc(Male))
+
+ggplot(salary_data_spread, aes(y=fct_reorder(occupation,Male), x=Female, xend=Male)) +
+  geom_dumbbell(size=3, color="#e3e2e1",
+                colour_x = "red", colour_xend = "dark blue") + 
+  scale_x_continuous(labels=scales::dollar, limits = c(40000, 650000)) +
+  labs(x=NULL, y=NULL, title="The gender gap in top average taxable incomes ($AUD), Australia, 2013-14", subtitle="Women (red) earn less than men (blue)", caption="Data source: Australian Government") +
+  theme_minimal() +
+  theme(panel.grid.major.x=element_line(size=0.05))
+```
+## Which occupations are the best for women in terms of the gender pay gap?
+
+```{r}
+gap <- salary_data %>% select(occupation, gender, average_taxable_income) %>% spread(gender, average_taxable_income) %>% mutate(fdiff=Female-Male, fdiffpct = as.integer(fdiff/Male*100)) %>% arrange(desc(fdiffpct))
+head(gap)
+```
+```{r, fig.height=8, fig.width=10}
+gaptop20 <- gap %>% top_n(20, fdiffpct)  %>% arrange(desc(fdiffpct))
+ggplot(gaptop20, aes(y=fct_reorder(occupation,Female), x=Female, xend=Male)) +
+  geom_dumbbell(size=3, color="#e3e2e1",
+                colour_x = "red", colour_xend = "dark blue") + 
+  scale_x_continuous(labels=scales::dollar, limits = c(10000, 150000)) +
+  labs(x=NULL, y=NULL, title="The gender gap in top average taxable incomes ($AUD), Australia, 2013-14", subtitle="Best occupations for women (red) in terms of pay gap", caption="Data source: Australian Government") +
+  theme_minimal() +
+  theme(panel.grid.major.x=element_line(size=0.05))
+```
