@@ -1,0 +1,63 @@
+---
+title: "US census"
+author: "Anna Reynolds"
+date: "5 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(hrbrthemes)
+library(viridis)
+library(RColorBrewer)
+library(plotly)
+library(ggridges)
+library(scales)
+```
+
+## US census data - Tidy Tuesday
+
+This week the data for Tidy Tuesday comes from the US Census. It contains data by US county and there are a number of continuous variables such as unemployment rate, poverty rate and population data. This week I might try a scatterplot or two.
+
+```{r import data}
+census_data <- read.csv('us_census.csv', stringsAsFactors = FALSE, header=TRUE, sep=",", na.strings="M")
+head(census_data)
+tail(census_data)
+```
+
+<details>
+<summary>View a summary of the US census data variables</summary>
+```{r summary, echo=FALSE}
+summary(census_data)
+```
+</details>
+
+## Plot of Income vs Poverty 
+```{r scatterplot, fig.height=8}
+#Make a variable with County and State combined
+census_data2 <- unite(census_data, col='CountyState', County, State, sep=", ", remove=FALSE)
+
+sp <- ggplot (census_data2, aes ( x = IncomePerCap , y = Poverty, color = Unemployment, label=CountyState)) + geom_point () + theme_minimal() + scale_colour_gradientn ( colours = c ("yellow", "orange", "darkred")) + labs(x="Income per capita ($US)", y="Poverty (%)", title="Income vs poverty, US counties", subtitle="County-level American Community Survey (5-year estimates) 2015", caption="Data source: census.gov")
+sp
+```
+
+## An interactive version
+```{r interactive scatterplot, message=FALSE, warning=FALSE, fig.width=8}
+ggplotly(sp, tooltip = c("label", "x", "y", "color"))
+```
+
+Most of the counties that have low income per capita and high poverty and unemployment rates are in Puerto Rico.
+
+## Distribution of income per capita by state
+```{r ridge plot, fig.height=8, warning=FALSE, message=FALSE}
+
+ggplot(census_data2, aes(x = IncomePerCap, y = State)) + geom_density_ridges( color="#FFFFFF", fill="#56B4E9") + theme_minimal() + labs(x="Income per capita ($US)", title = "Income per capita distribution, USA, 2015",
+    caption = "Data source: census.gov")
+```
+
+```{r box plot, fig.height=8, warning=FALSE, message=FALSE}
+
+ggplot(census_data2, aes(x = fct_reorder(State, IncomePerCap, fun = median), y = IncomePerCap)) + geom_boxplot(fill="#56B4E9") + theme_minimal() + labs(x = "State", y="Income per capita ($US)", title = "Income per capita distribution, USA, 2015",
+    caption = "Data source: census.gov") + coord_flip() 
+```
