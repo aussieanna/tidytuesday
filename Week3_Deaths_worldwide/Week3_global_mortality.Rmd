@@ -1,0 +1,67 @@
+---
+title: "Global mortality"
+author: "Anna Reynolds"
+date: "17 April 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(stringr)
+library(hrbrthemes)
+library(viridis)
+library(RColorBrewer)
+library(plotly)
+library(ggridges)
+```
+
+## Global mortality 1990 to 2016
+
+This weeks Tidy Tuesday data set contains data on global causes of death. It will need to be tidied using the tidyverse package before it can be graphed.
+
+### Import the data
+
+```{r import data set}
+world_mort <- readxl::read_excel('global_mortality.xlsx') 
+head(world_mort)
+```
+
+## Tidy the data
+
+The cause columns contain (%) which will need to be removed before the gather function from dplyr is used to convert the data set from wide to long.
+
+```{r tidy the data}
+#Remove % from column names
+world_mort2 <- rename_at(world_mort,vars(contains("%")),funs(str_remove_all(.,"[[:punct:]]"))) 
+world_mort_tidy <- gather(world_mort2, `Cardiovascular diseases `:`Terrorism `, key="cause", value = "percent")
+```
+
+Lets recreate the horozontal bar chart for global deaths. Cardiovascular diseases are responsible for the highest share of deaths world wide in 2016.
+
+```{r bar chart world, fig.height=8}
+world <- filter(world_mort_tidy, country == "World" & year == 2016) 
+
+ggplot(world, aes(x = reorder(cause, percent), y = percent, fill = percent)) + geom_bar(stat = "identity") + coord_flip() + scale_fill_viridis(direction=-1) + theme_minimal() + labs(x="Cause", y="Percent",
+       title="Share of deaths by cause, World, 2016",
+       caption="Source: ourworldindata.org; IHME GBD Study")
+```
+
+How have deaths from Cardiovacular diseases changed over time?
+
+```{r line chart, fig.height=8}
+#Restrict the data to Cardiovascular diseases and SDI
+cvd_sdi <- world_mort_tidy %>% filter(str_detect(country, "SDI") & cause == "Cardiovascular diseases ")
+
+ggplot(cvd_sdi, aes(x = factor(year), y = percent, group = country, colour = country)) + geom_line(size = 1.25) + theme_minimal() + labs(x="Year", y="Percent",
+       title="Cardiovascular disease share of deaths, by income groups, 1990-2016",
+       caption="Source: ourworldindata.org; IHME GBD Study")
+
+```
+
+Between 1990 and 2016, the share of deaths due to Cardiovascular diseases has declined in High SDI countries, been stable in High-middle SDI countries and increased in Middle, Low-middle and Low SDI countries.
+
+
+```{r output tidy data, echo=FALSE}
+#Lets output the tidy dataset for future use.
+write.csv(world_mort_tidy, file = "global_mortality_tidy.csv")
+```
