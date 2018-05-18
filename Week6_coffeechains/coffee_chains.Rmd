@@ -1,0 +1,67 @@
+---
+title: "Coffee chains"
+author: "Anna Reynolds"
+date: "9 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+library(leaflet)
+library(viridis)
+```
+
+## Coffee chains
+
+This weeks TidyTuesday data set includes location data for worldwide Starbucks outlets in an Excel spreadsheet.
+
+Use readxl package to import the data set.
+
+```{r import data}
+coffee <- readxl::read_excel('week6_coffee_chains.xlsx', sheet="starbucks")
+head(coffee)
+```
+
+```{r bar chart, fig.height=8}
+ggplot(coffee, aes(x = Country)) + geom_bar() + coord_flip() + theme_minimal() + labs(x="Country", y="Number of Starbucks cafes")
+```
+
+
+The US has substantially more Starbucks locations than the other countries.
+```{r filter US}
+us_star <- coffee %>% filter(Country=="US")
+```
+
+```{r map, warning=FALSE, message=FALSE}
+leaflet(data = us_star) %>% 
+  setView(-97.3606922, 32.7084083, zoom = 4) %>% 
+  addTiles() %>% addMarkers(clusterOptions = markerClusterOptions())
+```
+
+```{r map2, warning=FALSE, message=FALSE}
+leaflet(us_star) %>% addTiles() %>%
+  addCircleMarkers(
+    radius = 4,
+    color = "green",
+    stroke = FALSE, fillOpacity = 0.5,
+    popup = ~City
+  )
+```
+```{r filter Japan}
+japan_star <- coffee %>% filter(Country=="JP")
+```
+Where are the Starbucks located in Japan?
+```{r map3, warning=FALSE, message=FALSE}
+leaflet(japan_star) %>% addTiles() %>%
+  addCircleMarkers(
+    radius = 4,
+    color = "green",
+    stroke = FALSE, fillOpacity = 0.5,
+    popup = ~City
+  )
+```
+```{r output tidy data, echo=FALSE}
+#Lets output the tidy dataset for future use.
+write.csv(coffee, file = "starbucks.csv")
+```
