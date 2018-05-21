@@ -1,0 +1,81 @@
+---
+title: "Star Wars Popularity"
+author: "Anna Reynolds"
+date: "18 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(ggthemes)
+library(magick)
+```
+
+## TidyTuesday - Star Wars Survey
+
+This weeks dataset contains survey results on the popularity of the Star Wars films and characters in 2014. The results are described in a news article by fivethirtyeight <https://fivethirtyeight.com/features/americas-favorite-star-wars-movies-and-least-favorite-characters/>.  There were 1,186 respondants to the survey. The dataset is very untidy!
+
+```{r import data, warning=FALSE, message=FALSE}
+starwars <- read_csv('starwars.csv', col_names = TRUE)
+#Extract movie names and character names from the data
+movie_titles <- read_lines('starwars.csv') %>% str_split(",") %>% {.[[3]][4:9]}
+movie_char<- read_lines('starwars.csv') %>% str_split(",") %>% {.[[2]][16:29]}
+```
+
+The following code tidies the dataset:
+
+```{r tidy data, warning=FALSE}
+starwars_tidy <-
+  starwars %>% mutate(seen_films = rowSums(!is.na(.[4:9]))) %>% filter(`Have you seen any of the 6 films in the Star Wars franchise?` ==
+  "Yes",
+  seen_films == 6) %>% rename_at(
+  vars(
+  `Please rank the Star Wars films in order of preference with 1 being your favorite film in the franchise and 6 being your least favorite film.`:X15
+  ),
+  funs(paste(movie_titles))
+  ) %>% rename_at(
+  vars(
+  `Please state whether you view the following characters favorably, unfavorably, or are unfamiliar with him/her.`:X29
+  ),
+  funs(paste(movie_char))
+  )
+```
+## Most popular film
+```{r movie rank}
+#Restrict to the movie rankings and make data long
+movie_rank <-
+  starwars_tidy %>% select(`Star Wars: Episode I  The Phantom Menace`:`Star Wars: Episode VI Return of the Jedi`) %>% gather("movie", "rank") %>% filter(rank ==
+  1) %>% group_by(movie) %>% summarise(count = n()) %>% mutate(pct = round(count /
+  sum(count) * 100))
+```
+
+What was the most popular film among those who had seen all films?
+```{r dot plot, fig.width=8}
+sw_palette <- c ( "#140b0e", "#b84417","#b8805c","#2ec3ea", "#2c8cd0","#4e5870")
+
+ggplot ( movie_rank , aes ( x = pct, y = reorder ( movie , pct ))) + geom_segment ( aes ( yend = movie ), xend = 0 , colour = sw_palette ) + geom_point ( size = 4, aes ( colour = movie )) + scale_colour_manual(values = sw_palette) + theme_fivethirtyeight() + theme(legend.position = "none") + labs(title = "Empire Strikes Back was most popular", subtitle = "Ranked number 1 by survey respondants (%) who had seen all 6 films",
+    caption = "Source: https://fivethirtyeight.com/features/americas-favorite-star-wars-movies-and-least-favorite-characters/")
+```
+```{r save plot as pdf}
+ggsave ("starwars_fav.pdf")
+```
+```{r save plot as png}
+ggsave ("starwars_fav.png", width=8, height=6, dpi=300)
+```
+
+Here is the chart with a silly Star Wars gif included using the Magick package.
+```{r gif}
+chartpic <- image_read("starwars_fav.png") 
+yodagif <- image_read("yoda.gif")
+frames <- image_composite(chartpic, yodagif, offset = "+70+20")
+animation <- image_animate(frames, fps = 10)
+image_write(animation, "starwars_yoda.gif")
+```
+![Do. Or do not. There is no try.](starwars_yoda.gif)
+
+```{r save tidy dataset, echo=FALSE}
+#Lets output the tidy dataset for future use.
+write.csv(starwars_tidy, file = "starwars_tidy.csv")
+```
+
