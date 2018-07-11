@@ -1,0 +1,71 @@
+---
+title: "Global life expectancy"
+author: "Anna Reynolds"
+date: "9 July 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(ggthemes)
+library(RColorBrewer)
+display.brewer.all(colorblindFriendly=TRUE)
+library(ggpomological)
+```
+
+
+## TidyTuesday - Global life expectancy
+
+This weeks dataset contains data on global life expectancy from Our World in Data <https://ourworldindata.org/life-expectancy> Max Roser (2018).  The date range is 1950 to 2015.
+
+```{r import data}
+le_global <- read_csv('week14_global_life_expectancy.csv', col_names = TRUE)
+head(le_global)
+```
+
+### Lets look at the high level picture by global region
+
+Restrict the data to Africa, Asia, Oceania, the Americas, Europe, and the World.
+
+```{r high level}
+le_high <- le_global %>% filter(country == 'Asia' | country == 'Africa' | country == 'Oceania' | country == 'Europe' | country == 'World' | country == 'Northern America' | country == 'South America')
+```
+
+```{r line chart, fig.width=8}
+cb_palette <- c ( "#999999" , "#E69F00" , "#56B4E9" , "#009E73" , "#000000" , "#0072B2" , "#D55E00" , "#CC79A7" )
+
+ggplot(le_high, aes(x = factor(year), y = life_expectancy, group = country, color = country)) + geom_line(size = 1.25) + theme_economist_white() + scale_color_manual ( values = cb_palette ) + labs(x="Year", y="Life expectancy",
+       title="Global life expectancy, 1950 to 2015",
+       caption="Source: https://ourworldindata.org/life-expectancy", color=" ") + scale_x_discrete ( breaks = c ( 1950 , 1970, 1990 , 2010)) 
+```
+
+Life expectancy has increased over time in all regions, however Africa still lags well behind the rest of the world.  
+
+```{r save plot as png, echo=FALSE}
+ggsave ("life_exp_region.png", width=8, height=6, dpi=300)
+```
+### ggpomological version
+```{r ggpomological, fig.width=8}
+ggplot(le_high, aes(x = factor(year), y = life_expectancy, group = country, color = country)) + geom_line(size = 1.25) + theme_pomological_fancy() + labs(x="Year", y="Life expectancy",
+       title="Global life expectancy, 1950 to 2015",
+       caption="Source: https://ourworldindata.org/life-expectancy", color=" ") + scale_x_discrete ( breaks = c ( 1950 , 1970, 1990 , 2010)) 
+```
+
+### Lets have a look at the impact of war and conflict on life expectancy.
+Restrict data to countries that have experienced conflict/war during the time period.
+```{r war line chart, fig.width=8}
+le_war <- le_global %>% filter(country == 'Cambodia' & year >1945 | country == 'Vietnam' | country == 'Rwanda' | country == 'Syria' | country == 'World' | country == 'Iraq' | country == 'Ethiopia')
+
+ggplot(le_war, aes(x = factor(year), y = life_expectancy, group = country, color = country)) + geom_line(size = 1.25) + theme_economist_white() + scale_color_brewer ( palette = "Set2" ) + labs(x="Year", y="Life expectancy",
+       title="Global life expectancy, 1950 to 2015",
+       subtitle="What is the effect of war/conflict?",
+       caption="Source: https://ourworldindata.org/life-expectancy", color=" ") + scale_x_discrete ( breaks = c ( 1950 , 1970, 1990 , 2010, 2015)) 
+
+```
+
+Life expectancy has been most affected by the Khmer Rouge regime in Cambodia in the late 1970's and the civil war in Rwanda in the mid 1990's.
+expectancy.
+```{r save as png, echo=FALSE}
+ggsave ("life_exp_war.png", width=8, height=6, dpi=300)
+```
