@@ -1,0 +1,43 @@
+---
+title: "Comic characters"
+author: "Anna Reynolds"
+date: "2 June 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(ggthemes)
+```
+
+## TidyTuesday - Comic characters
+
+This weeks dataset contains data on characters from Marvel and DC comics. The results are described in a news article by fivethirtyeight <https://fivethirtyeight.com/features/women-in-comic-books/>.  There are 11,853 records in the data set.
+
+```{r import data, warning=FALSE, message=FALSE}
+comics <- read_csv('comic_chars.csv', col_names = TRUE)
+head(comics)
+#summary(comics)
+```
+
+### Has the ratio of male to female characters changed over time?
+```{r keep variables}
+comic_sex <- comics %>% select(publisher, year, sex) %>% filter(!is.na(sex)) %>% group_by(publisher, year, sex) 
+sex_summ <- summarise(comic_sex, count=n()) %>% spread(key = sex, value = count) %>%  mutate(ratio_M=`Male Characters`/`Female Characters`) %>% mutate(total_char=sum(`Male Characters`,`Female Characters`)) %>% mutate(percent_F=`Female Characters`/total_char*100)
+
+```
+
+```{r line chart ratio, fig.height=8, message=FALSE, warning=FALSE}
+ggplot(sex_summ, aes(x = factor(year), y = ratio_M, group=publisher)) + geom_line(color = "red", size = 1.25) + theme_minimal() + labs(x="Year", y="Ratio of Male to Female Characters",
+       title="Comic character gender ratio over time, Marvel comics, 1939-2013",
+       caption="Source: https://fivethirtyeight.com/features/women-in-comic-books/")
+
+```
+### Has the % of female characters changed over time?
+```{r line chart %, fig.height=8, message=FALSE, warning=FALSE}
+ggplot(sex_summ, aes(x = factor(year), y = percent_F, group=publisher)) + geom_line(color = "red", size = 1.25) + theme_minimal() + geom_smooth() + labs(x="Year", y="Percentage of Female Characters",
+       title="Comic character proportion of female characters over time, Marvel comics, 1939-2013",
+       caption="Source: https://fivethirtyeight.com/features/women-in-comic-books/")
+
+```
