@@ -1,0 +1,91 @@
+---
+title: "Malaria worldwide"
+author: "Anna Reynolds"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+This weeks #TidyTuesday is on Malaria data from [Our World in Data](https://ourworldindata.org/malaria). I have chosen to concentrate on the data set containing Malaria deaths by age across the world and time. It contains data from 1990 to 2016 for countries worldwide.
+
+## Load data
+```{r load data, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(ggthemr)
+library(knitr)
+library(scales)
+library(DataExplorer)
+malaria <- read_csv(here("malaria_deaths_age.csv"))
+kable(head(malaria))
+#Set theme
+ggthemr(palette = "light", set_theme = TRUE)
+kable(introduce(malaria))
+```
+
+## Analysis/visualization
+
+### Deaths by age for the world - children under 5 impacted the most by malaria
+```{r line chart}
+world <- malaria %>% filter(country == "World")
+line <- ggplot(world, aes(year, deaths, group = age_group, color = age_group)) + geom_line(size = 1.5) +
+  scale_y_continuous(labels = comma_format()) + labs(
+  x = " ",
+  y = " ",
+  title = "Malaria deaths worldwide by age group, 1990 to 2016",
+  caption = "Source: ourworldindata.org"
+  ) + theme(legend.title = element_blank()) + 
+  scale_color_discrete(breaks=c("Under 5", "5-14", "15-49", "50-69", "70 or older"))
+line
+```
+
+Interactive line chart
+```{r interactive line chart, message=FALSE}
+library(plotly)
+ggplotly(line)
+```
+
+## Results
++ Children aged under 5 have a much higher number of deaths than the other age groups
++ Deaths in children under 5 peaked in 2003 with around 750,000 but declined to around 510,000 in 2016.
+
+## Discussion/conclusions
+
+## Package citations
+
+  Boxuan Cui (2018). DataExplorer: Data Explorer. R package version 0.7.0.
+  https://CRAN.R-project.org/package=DataExplorer
+  
+  Ciaran Tobin (NA). ggthemr: Themes for ggplot2. R package version 1.1.0.
+
+  Hadley Wickham (2017). tidyverse: Easily Install and Load the
+  'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+  
+  Hadley Wickham (2018). stringr: Simple, Consistent Wrappers for Common
+  String Operations. R package version 1.3.0.
+  https://CRAN.R-project.org/package=stringr
+  
+  Yihui Xie (2018). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.20.
+  
+  Carson Sievert, Chris Parmer, Toby Hocking, Scott Chamberlain, Karthik Ram,
+  Marianne Corvellec and Pedro Despouy (2017). plotly: Create Interactive Web
+  Graphics via 'plotly.js'. R package version 4.7.1.
+  https://CRAN.R-project.org/package=plotly
+  
+```{r citation, echo=FALSE, eval=FALSE}
+citation("DataExplorer")
+citation("ggthemr")
+citation("tidyverse")
+citation("stringr")
+citation("knitr")
+citation("plotly")
+```
