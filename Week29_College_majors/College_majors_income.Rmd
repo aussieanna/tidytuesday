@@ -1,0 +1,169 @@
+---
+title: "US College majors"
+author: "Anna Reynolds"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+This #TidyTuesday data set contains the data behind the story [The Economic Guide To Picking A College Major](https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/){target="_blank"} by Fivethirtyeight. All data is from American Community Survey 2010-2012 Public Use Microdata Series.
+
+## Load data
+```{r , warning=FALSE, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(knitr)
+library(hrbrthemes)
+library(gghighlight)
+library(scales)
+theme_set(theme_ipsum_rc())
+college_majors <- read_csv("college_majors.csv") %>% mutate(Major = str_to_title(Major)) %>% mutate(Women_percent=ShareWomen*100)
+kable(head(college_majors))
+```
+
+## Analysis/visualization
+### What is the most popular major?
+
+```{r bar chart, fig.width=8, fig.height=10}
+top_20 <- college_majors  %>% top_n(Total,n=20)
+bar1 <-
+  ggplot(top_20, aes(x = reorder(Major, Total), y = Total)) + geom_bar(stat = "identity") + coord_flip() +
+  scale_y_continuous(labels = comma_format()) + labs(
+  x = " ",
+  y = "Number of people",
+  title = "Top 20 popular majors 2010-2012, USA",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  )
+  bar1
+```
+
+### Which majors have the highest and lowest proportions of women?
+#### Highest proportions of women.
+```{r bar chart 2, fig.width=8, fig.height=6}
+top_20_women <- college_majors  %>% top_n(ShareWomen,n=20) %>% mutate(Women_percent=ShareWomen*100)
+
+bar2 <-
+  ggplot(top_20_women,
+  aes(
+  x = reorder(Major, Women_percent),
+  y = Women_percent,
+  fill = Major_category
+  )) + geom_bar(stat = "identity") + coord_flip() + labs(
+  x = " ",
+  y = "Percent",
+  title = "Top 20 majors with highest proportion\nof women, 2010-2012, USA",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  ) + scale_fill_discrete(name = "Major category") +
+    scale_fill_manual(values=c("#FB9A99", "#6A3D9A", "#FFFF99", "#B15928", "#CAB2D6"))
+  bar2
+```
+
+#### Lowest proportions of women.
+```{r bar chart 3, fig.width=8, fig.height=6}
+bottom_20_women <- college_majors  %>% top_n(ShareWomen,n=-20) %>% mutate(Women_percent=ShareWomen*100)
+bar3 <-
+  ggplot(bottom_20_women,
+  aes(
+  x = reorder(Major, Women_percent),
+  y = Women_percent,
+  fill = Major_category
+  )) + geom_bar(stat = "identity") + coord_flip() + labs(
+  x = " ",
+  y = "Percent",
+  title = "Bottom 20 majors with lowest proportion\nof women, 2010-2012, USA",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  ) + scale_fill_discrete(name = "Major category") +
+    scale_fill_brewer(palette="Paired")
+  bar3
+```
+
+### Which majors have the highest incomes?
+```{r bar chart 4, fig.width=10, fig.height=8}
+top_20_inc <- college_majors  %>% top_n(Median,n=20)
+bar4 <-
+  ggplot(top_20_inc, aes(x = reorder(Major, Median), y = Median)) + geom_bar(stat = "identity") + coord_flip() +
+  scale_y_continuous(labels = comma_format()) + labs(
+  x = " ",
+  y = "Median Income ($)",
+  title = "Top 20 majors by median income 2010-2012, USA",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  )
+  bar4
+```
+
+### Rank by proportion of women
+```{r scatterplot, fig.width=10, fig.height=8, warning=FALSE, message=FALSE}
+scatter <-
+  ggplot(college_majors,
+  aes(x =  Women_percent, y = Rank, color = Major_category)) + geom_point() + labs(
+  x = "Percent",
+  y = "Rank",
+  title = "College majors by proportion of women and income (rank), \n2010-2012, USA",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  ) + scale_color_discrete(name = "Major category") +
+  scale_y_reverse()
+scatter
+```
+
+```{r scatterplot2, warning=FALSE}
+scatter2 <-
+  ggplot(college_majors, aes(x =  Women_percent, y = Rank)) + geom_point(size =
+  2) + gghighlight(Rank < 11) + labs(
+  x = "Percent",
+  y = "Rank",
+  title = "College majors by proportion of women and income (rank), \n2010-2012, USA",
+  subtitle = "Top 10 majors by salary",
+  caption = "Source: American Community Survey 2010-2012 Public Use Microdata Series"
+  ) + annotate(
+  "text",
+  label = "Astronomy and Astrophysics",
+  x = 71,
+  y = 8,
+  size = 3.5
+  ) + scale_y_reverse()
+scatter2
+```
+
+## Conclusions
++ Psychology was the most popular major followed by Business Management and administration
++ Education and Health majors had the highest proportion of women
++ Engineering majors had the lowest proportion of women but the highest salaries
++ Petroleum engineering had the highest median income
++ The higher the income rank of a major, the lower the proportion of women
++ Astronomy and astrophysics was an outlier, with more than 50% women and ranked number 8 for income
+
+## Package citations
+  Hiroaki Yutani (2018). gghighlight: Highlight Lines and Points in
+  'ggplot2'. R package version 0.1.0.
+  https://CRAN.R-project.org/package=gghighlight
+  
+  Bob Rudis (2018). hrbrthemes: Additional Themes, Theme Components and
+  Utilities for 'ggplot2'. R package version 0.5.0.
+  https://CRAN.R-project.org/package=hrbrthemes
+  
+  Hadley Wickham (2017). tidyverse: Easily Install and Load the
+  'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+  
+  Hadley Wickham (2018). stringr: Simple, Consistent Wrappers for Common
+  String Operations. R package version 1.3.0.
+  https://CRAN.R-project.org/package=stringr
+  
+  Yihui Xie (2018). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.20.
+  
+```{r citation, echo=FALSE, eval=FALSE}
+citation("gghighlight")
+citation("hrbrthemes")
+citation("tidyverse")
+citation("stringr")
+citation("knitr")
+```
+
