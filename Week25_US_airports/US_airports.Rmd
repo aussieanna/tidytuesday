@@ -1,0 +1,95 @@
+---
+title: "US airports"
+author: "Anna Reynolds"
+date: "22 September 2018"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(hrbrthemes)
+library(viridis)
+library(RColorBrewer)
+library(geofacet)
+library(cartography)
+library(sf)
+library(knitr)
+```
+
+## US airports - Tidy Tuesday
+This weeks #TidyTuesday dataset contains information about US airports from 2013-2017. More information about the data can be found here: https://www.faa.gov/airports/planning_capacity/passenger_allcargo_stats/categories/
+
+### Import the data
+```{r import data, message=FALSE}
+#Import .csv file
+airports <- read.csv('us_airports.csv')
+kable(head(airports))
+#Filter to 2016 and remove small US territories (e.g. Puerto Rico etc)
+airports_16 <- airports %>% filter(year==2016 & (state != "GU" & state != "PR" & state != "VI" & state != "AS" & state != "MP"))
+ 
+#Import the US states shapefile
+us_states <- st_read("C:/Users/anna/Documents/Data_visualisation/Shapefiles/cb_2017_us_state_5m/cb_2017_us_state_5m.shp")
+```
+
+The data for 2017 may be incomplete so we will focus on 2016.
+
+### In 2016 which states had the most airports?
+```{r most airports}
+number_airports <- airports_16 %>% group_by(state) %>% summarise(n=n()) %>% arrange(desc(n))
+kable(head(number_airports))
+```
+
+Alaska has the most number of airports with 258, compared with California with 75 then Texas with 63.
+Why does Alaska have so many airports?
+Lets have a look at the number of airports by type.
+```{r types airports}
+type_air <- airports_16 %>% group_by(state, airport_classification) %>% summarise(type=n())
+```
+
+```{r geofacet, fig.width=12, fig.height=8, message=FALSE}
+ggplot(type_air, aes(airport_classification, type, group = state)) +
+  geom_bar(stat = "identity") + coord_flip() +
+  facet_geo(~ state, grid = "us_state_grid2", label = "name") +
+    labs(title = " ",
+    caption = "Source: www.faa.gov",
+    x = " ",
+    y = " ") +
+  theme(strip.text.x = element_text(size = 6))
+```
+
+```{r cities lat long, message=FALSE, warning=FALSE}
+#Merge the US states shapefile with the airports_16 data
+states_shp <- st_read("C:/Users/anna/Documents/Data_visualisation/Shapefiles/cb_2017_us_state_5m/cb_2017_us_state_5m.shp") %>% rename(state = STUSPS)
+
+#Import the us cities data containing lat/long
+cities <- read.csv('us_cities.csv') %>% rename(state = state_id)
+
+# Join the values to the map data using state
+us_airports <- left_join(states_shp, airports_16)
+
+#Join city lat/long data
+us_airports2 <- left_join(us_airports, cities)
+
+#Filter to California
+cali <- us_airports2 %>% filter(state == 'CA')
+plot(st_geometry(cali))
+
+```
+
+```{r cali map, warning=FALSE}
+ggplot(cali) + geom_sf(fill="white") + geom_point(aes(x=lng, y=lat, size=passengers, color=hub_type)) + labs(x=NULL, y=NULL, 
+                  title="Airports in California, 2016",
+                  subtitle=NULL,
+                  caption="Source: www.faa.gov") + theme_minimal() 
+```
+```{r us map, fig.width=12, fig.height=12}
+ggplot(us_airports2) + geom_sf(fill="white") + geom_point(aes(x=lng, y=lat, size=passengers, color=hub_type)) + labs(x=NULL, y=NULL, 
+                  title="Airports in the USA, 2016",
+                  subtitle=NULL,
+                  caption="Source: www.faa.gov") + theme_minimal() +  coord_sf(xlim=c(-170, -60), ylim=c(20, 80)) 
+```
+
