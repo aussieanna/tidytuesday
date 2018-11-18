@@ -1,0 +1,144 @@
+---
+title: "US cats and dogs"
+author: "Anna Reynolds"
+date: "11 September 2018"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(hrbrthemes)
+```
+
+## Cat and dog ownership in the US
+
+This weeks #TidyTuesday data set contains data on the proportion of households that own cats and dogs in the US. The data is from the American Veterinary Medical Association via data.world. It was reported on in a [Washington Post article](https://www.washingtonpost.com/news/wonk/wp/2014/07/28/where-cats-are-more-popular-than-dogs-in-the-u-s-and-all-over-the-world/?noredirect=on&utm_term=.e27b64bffdee){target="_blank"}
+
+It concludes that cats are more popular than dogs.
+
+### Import the data
+```{r import data, warning=FALSE, message=FALSE}
+pets <- read_tsv("cats_dogs.csv")
+head(pets)
+```
+
+### Which states have the highest proportion of households with pets?
+
+```{r pet bar, fig.width=10}
+pet_10 <- pets  %>% top_n(percent_pet_households,n=10)
+bar1 <- ggplot(pet_10, aes(x = reorder(state, percent_pet_households), y = percent_pet_households))+ geom_bar(stat = "identity") + coord_flip() + theme_ipsum_rc() + labs(x=" ", y="Percent",
+       title="Top 10 states by proportion of households with pets, USA",
+       caption="Source: American Veterinary Medical Association")
+bar1
+```
+
+Vermont has the highest proportion of households with pets.
+
+### What is the ratio of cats to dogs in each state?
+```{r choropleth map, warning=FALSE, message=FALSE}
+cats_dogs <- mutate(pets, ratio = cat_population/dog_population)
+
+states <- map_data("state") #Get US state geo information
+data <- cats_dogs %>% mutate(region = tolower(state))
+# Join the values to the map using region
+us_map <- left_join(states, data)
+#generate the map
+map1 <- ggplot() + geom_map(aes(x = long, y = lat, map_id = region), data = us_map,
+           map = us_map, fill = "#ffffff", color = "#ffffff", size = 0.15) + geom_map(aes(fill = ratio, map_id = region),
+           map = us_map, data = us_map,
+           color = "#ffffff", size = 0.15) +
+  viridis::scale_fill_viridis(name="Ratio cats:dogs", direction=-1) +
+  coord_map('albers', lat0 = 39, lat1 = 45) +
+  ggthemes::theme_map() +
+  theme(legend.position="bottom") +
+  labs(title = "Ratio of cats to dogs, USA",
+    caption = "Source: American Veterinary Medical Association. Icons by Adioma") + annotate("text", x = -75.85, y = 49.325, label = "Cats outnumber dogs", size=3, colour="gray30")
+map1
+```
+
+```{r, echo=FALSE}
+#Save map
+ggsave(file="US_cats_dogs.png", plot=map1, width=10, height=8)
+```
+
+Cats are more popular than dogs in the Northern states but particularly in the North-Eastern states. This may be due to less space in highly urban areas making it easier for people to own cats.
+
+### Add some images using the magick package
+```{r choropleth map2, warning=FALSE, message=FALSE}
+library(magick)
+library(grid)
+
+#Import cat and dog icons
+cat <- image_read("cat.png")
+dog <- image_read("big-dog.png")
+#Resize images
+cat2 <- image_scale(cat, "x50")
+dog2 <- image_scale(dog, "x50")
+print(cat2)
+#Add images to map
+
+fig <- image_graph(width = 800, height = 800, res = 96)
+map1
+dev.off()
+# Combine
+out <- image_composite(fig, cat2, offset = "+680+220")
+print(out)
+out2 <- image_composite(out, dog2, offset = "+270+500")
+print(out2)
+
+#Save image
+image_write(out2, "US_cats.png")
+```
+
+### Is there a relationship between states with higher % cat owners and % urban population?
+```{r cat urban, warning=FALSE ,message=FALSE}
+#Import data on US urban population by state
+urban <-  readxl::read_excel('us_urban_state_percentage_wikipedia.xlsx') %>% rename(state = 'State/Territory')
+data_urban <- left_join(data, urban) %>% rename(urban_percent = '2010')
+#Generate a scatterplot 
+sp <- ggplot (data_urban, aes ( x = urban_percent*100 , y = percent_cat_owners, label=state)) + geom_point (size = 1.5, color = "purple") + theme_minimal() + geom_smooth() + labs(x="Urban population (%)", y="Cat owners (%)", title="Cat owners vs urban population, US state", caption="Data sources: American Veterinary Medical Association; census.gov")
+sp
+```
+
+It appears as though the proportion of households with cats decreases as the proportion of the urban population increases.
+
+```{r dog urban, warning=FALSE ,message=FALSE}
+sp2 <- ggplot (data_urban, aes ( x = urban_percent*100 , y = percent_dog_owners, label=state)) + geom_point (size = 1.5, color = "dark green") + theme_minimal() + geom_smooth() + labs(x="Urban population (%)", y="Dog owners (%)", title="Dog owners vs urban population, US state", caption="Data sources: American Veterinary Medical Association; census.gov")
+sp2
+```
+
+A similar relationship was found for households with dogs.
+
+## International comparisons
+The US has a similar pet ownership rate to Australia with 65% of homes having a pet. More than 62% of Australian households own a pet. Of these, 38% are dog owners and 29% are cat owners. This is more than the UK, in which just 40% of homes have a pet.
+[Australian Pet Ownership Statistics, Pet Industry Association](https://piaa.net.au/australian-pet-ownership-statistics/){target="_blank"}
+
+## Package citation(s)
+```{r citation, echo=FALSE, eval=FALSE}
+citation("magick")
+citation("hrbrthemes")
+citation("tidyverse")
+citation("grid")
+citation("knitr")
+```
+  Jeroen Ooms (2018). magick: Advanced Graphics and Image-Processing in
+  R. R package version 1.9. https://CRAN.R-project.org/package=magick
+  
+  R Core Team (2018). R: A language and environment for statistical
+  computing. R Foundation for Statistical Computing, Vienna, Austria.
+  URL https://www.R-project.org/.
+  
+  Bob Rudis (2018). hrbrthemes: Additional Themes, Theme Components and
+  Utilities for 'ggplot2'. R package version 0.5.0.
+  https://CRAN.R-project.org/package=hrbrthemes
+  
+  Hadley Wickham (2017). tidyverse: Easily Install and Load the
+  'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+  
+  Yihui Xie (2018). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.20.
