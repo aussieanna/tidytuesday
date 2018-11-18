@@ -1,0 +1,62 @@
+---
+title: "US Exercise"
+author: "Anna Reynolds"
+date: "22 July 2018"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+## Exercise in the US
+
+This weeks #TidyTuesday data set is from the CDC and contains data on the proprotion of people meeting the guidelines for exercise in each US state. 
+
+```{r libs, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(hrbrthemes)
+library(ggthemes)
+library(geofacet)
+library(ggthemr)
+```
+
+## Importing the data
+The data this week comes in an Excel spreadsheet with a worksheet called `source` and one called `tidy` and I will be importing the tidy worksheet.
+
+```{r data import, warning=FALSE, message=FALSE}
+state_exercise <- readxl::read_excel(sheet = "tidy", 'week16_exercise.xlsx', col_types = c("skip", "guess", "guess", "guess", "numeric"))
+head(state_exercise)
+```
+
+### Filter the dataset to show state average by sex and work status
+```{r bar chart, fig.height=6, message=FALSE, warning=FALSE}
+#Filter data to state average
+state_avg <-
+  state_exercise %>% filter(state == "state_average" & sex != "both")
+  ggthemr(palette = "fresh")
+  bar <-
+  ggplot(state_avg, aes(x = sex, y = exercise, fill = work_status)) + geom_bar(stat = "identity", position = "dodge") + labs(
+  x = "Sex",
+  y = "Per cent",
+  title = "Proportion of people who meet exercise guidelines \n by work status, USA, 2010-15",
+  caption = "Source: CDC"
+  )
+  bar
+```
+
+In general it looks like more men meet the guidelines than women, and for both sexes more people who work meet the guidelines than those who don't work.
+
+```{r geofacet, fig.width=12, fig.height=8, warning=FALSE, message=FALSE}
+state_exercise2 <-
+  state_exercise %>% filter(sex != "both" & state != "state_average")
+  ggplot(state_exercise2, aes(sex, exercise, fill = work_status)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_geo( ~ state, grid = "us_state_grid2", label = "name")  +
+  labs(
+  title = "Proportion of people who meet exercise guidelines \n by work status, USA, 2010-15",
+  caption = "Source: CDC",
+  x = "Sex",
+  y = "%"
+  ) +
+  theme(strip.text.x = element_text(size = 6)) + coord_flip()
+```
