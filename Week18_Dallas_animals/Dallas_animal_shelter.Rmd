@@ -1,0 +1,97 @@
+---
+title: "Dallas animal shelter"
+author: "Anna Reynolds"
+date: "10 August 2018"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Dallas animal shelter data
+
+This weeks #TidyTuesday data set is on animal shelter data in Dallas in the US. There is one Excel spreadsheet with data from the 2016-17 financial year.
+
+### Import the data
+
+```{r import data, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(paletteer)
+library(hrbrthemes)
+library(ggalluvial)
+
+animals <- readxl::read_excel(sheet = "simple", 'week18_dallas_animals.xlsx')
+head(animals)
+
+```
+
+### Which animal type was most often taken in by the shelter?
+```{r type, fig.height=8}
+type <- ggplot(animals, aes(x = animal_type)) + geom_bar(stat = "count") + coord_flip() + theme_ipsum_rc() + labs(x="Type of animal", y="Number of animals",
+       title="Dallas animal shelter data, USA, 2016-17",
+       caption="Source: Dallas OpenData")
+type
+```
+
+Dogs were the most common animal type taken in by the shelter.
+
+### What was the most common breed of dog at the shelter?
+```{r bar dogs, fig.height=8, fig.wdith=12, message=FALSE, warning=FALSE}
+dogs <- animals %>% filter(animal_type=="DOG") %>% count(animal_breed) %>% top_n(n=20)
+dog_breeds <- ggplot(dogs, aes(x = reorder(animal_breed, n), y = n)) + geom_bar(stat = "identity") + coord_flip() + theme_ipsum_rc() + labs(x="Dog breed", y="Number of animals",
+       title="Dallas animal shelter data - top 20 dog breeds, USA, 2016-17",
+       caption="Source: Dallas OpenData")
+dog_breeds
+```
+
+Pitt Bulls, Short haired Chihuahua, German Sheperds and Labrador Retrievers were the most common breeds.
+
+### When were dogs most often taken in?
+```{r line dogs, fig.height=8, fig.wdith=12, message=FALSE, warning=FALSE}
+dogs_only <- animals %>% filter(animal_type=="DOG") %>% count(intake_date)
+date <- ggplot(dogs_only, aes(x = intake_date, y = n, group=1)) + geom_line() + stat_smooth ( method = loess ) + theme_ipsum_rc() + labs(x="Intake date", y="Number of animals",
+       title="Dallas animal shelter data - intake date for dogs, USA, 2016-17",
+       caption="Source: Dallas OpenData")  
+date
+```
+
+Intake of dogs peaked in the summer months.
+
+```{r month bar, fig.height=8, fig.wdith=12, message=FALSE, warning=FALSE}
+dog_month <- animals %>% filter(animal_type=="DOG") %>% count(month) %>% top_n(n=5)
+month <- ggplot(dog_month, aes(x = reorder(month, n), y = n)) + geom_bar(stat = "identity") + coord_flip() + theme_ipsum_rc() + labs(x="Month", y="Number of animals",
+       title="Dallas animal shelter data - month of intake, USA, 2016-17",
+       caption="Source: Dallas OpenData")
+month
+```
+
+June was the most common month of intake for dogs into the shelter.
+
+### What are the outcomes for dogs?
+```{r sankey, fig.height=8, fig.wdith=16, message=FALSE, warning=FALSE}
+dogs_sum <- animals %>% filter(animal_type == "DOG") %>% filter(intake_type %in% c("STRAY", "OWNER SURRENDER", "CONFISCATED")) %>% mutate(outcome_type = fct_lump(outcome_type, n = 4)) %>% group_by(intake_type, outcome_type) %>% summarise(n = n())
+
+pal <- paletteer_d(wesanderson, Moonrise3)
+
+sankey <-
+  ggplot(dogs_sum, aes(y = n, axis1 = intake_type, axis2 = outcome_type)) + geom_alluvium(aes(fill = outcome_type)) + geom_stratum(fill = "lightgrey", color = "white", size = 1) + geom_text(stat = "stratum", label.strata =
+  T) + theme_minimal() + labs(
+  x = " ",
+  y = " ",
+  title = "Dallas animal shelter data - outcomes for dogs, USA, 2016-17",
+  caption = "Source: Dallas OpenData",
+  fill = "Outcome"
+  ) + scale_fill_manual(values = pal) + theme (panel.grid.major = element_blank (),
+  panel.grid.minor = element_blank ())
+  sankey
+
+```
+```{r colorblindr}
+#Check if sankey is colour blind friendly
+cvd_grid(sankey)
+```
+
