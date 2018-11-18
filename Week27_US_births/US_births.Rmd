@@ -1,0 +1,94 @@
+---
+title: "US births"
+author: "Anna Reynolds"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+setwd(here::here())
+```
+
+## Overview
+This weeks #TidyTuesday dataset contains data on births in the US from the fivethirtyeight package. The web article can be found [here](https://fivethirtyeight.com/features/some-people-are-too-superstitious-to-have-a-baby-on-friday-the-13th/){target="_blank"} showing that there are less births on Friday the 13th.
+
+## Load data
+```{r load, message=FALSE}
+library(tidyverse)
+library(knitr)
+library(hrbrthemes)
+library(lubridate)
+library(gghighlight)
+us_births <- read_csv("us_births.csv")
+kable(head(us_births))
+```
+
+## Analysis/visualization
+### What days of the week have less births?
+Lets make a heatmap using the date_of_month and day_of_week variables.
+
+```{r heat map, fig.width=12}
+hm <- ggplot(data = us_births, aes(x = day_of_week, y = date_of_month)) +
+  geom_tile(aes(fill = births)) + theme_ipsum_rc() + labs(x="Day of the week", y="Day of the month",
+       title="Number of births by day of the week and month, USA, 2000-2014",
+       caption="Source: https://fivethirtyeight.com/features/some-people-are-too-superstitious-to-have-a-baby-on-friday-the-13th/")
+hm
+```
+```{r box plot, fig.width=12}
+Friday13 <- us_births %>% filter(day_of_week==5 & date_of_month==13)
+#Plot
+box <- ggplot(us_births, aes(day_of_week, births, group=day_of_week)) + geom_boxplot() + theme_ipsum_rc() + labs(x="Day of the week", y="Births",
+       title="Number of births by day of the week, USA, 2000-2014",
+       caption="Source: https://fivethirtyeight.com/features/some-people-are-too-superstitious-to-have-a-baby-on-friday-the-13th/")
+box
+#Highlight births on Friday the 13th
+box + gghighlight(day_of_week==5, date_of_month==13)
+```
+
+```{r area chart, fig.width=12}
+#Generate date variable
+birth_dates <- us_births %>% mutate(date = make_date(year, month, date_of_month))
+kable(head(birth_dates))
+#Plot
+ggplot(data = birth_dates, aes(x = date, y = births)) + geom_area(alpha=0.5) + theme_ipsum_rc() + labs(x="", y="",
+       title="Number of births by date, USA, 2000-2014",
+       caption="Source: https://fivethirtyeight.com/features/some-people-are-too-superstitious-to-have-a-baby-on-friday-the-13th/")
+```
+
+## Results
+The data shows that there are fewer births on Saturdays and Sundays. The number of births on Friday the 13th is lower than other Fridays but not as low as the number of births on the weekend.
+
+## Discussion/conclusions
+The [gghighlight](https://yutannihilation.github.io/gghighlight/index.html){target="_blank"} package is really useful for identifying and highlighting a subset of data from a large data set.
+
+## Package citation(s)
+```{r citation, echo=FALSE, eval=FALSE}
+citation("gghighlight")
+citation("hrbrthemes")
+citation("tidyverse")
+citation("lubridate")
+citation("knitr")
+```
+  Garrett Grolemund, Hadley Wickham (2011). Dates and Times Made Easy
+  with lubridate. Journal of Statistical Software, 40(3), 1-25. URL
+  http://www.jstatsoft.org/v40/i03/.
+  
+  Bob Rudis (2018). hrbrthemes: Additional Themes, Theme Components and
+  Utilities for 'ggplot2'. R package version 0.5.0.
+  https://CRAN.R-project.org/package=hrbrthemes
+  
+  Hadley Wickham (2017). tidyverse: Easily Install and Load the
+  'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+  
+  Yihui Xie (2018). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.20.
+  
+  Hiroaki Yutani (2018). gghighlight: Highlight Lines and Points in
+  'ggplot2'. R package version 0.1.0.
+  https://CRAN.R-project.org/package=gghighlight
