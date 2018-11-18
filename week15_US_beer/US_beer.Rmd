@@ -1,0 +1,100 @@
+---
+title: "US craft beer"
+author: "Anna Reynolds"
+date: "16 July 2018"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Craft beer in the US
+
+This weeks #TidyTuesday data set is on craft beer in the US. There are 2 worksheets in an Excel spreadsheet, one with brewery location information and the other contains data on the types of beer made by the breweries.
+
+### Import the data
+
+```{r import data, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(ggthemes)
+library(viridis)
+library(hrbrthemes)
+
+beer1 <- readxl::read_excel(sheet = "breweries", 'week15_beers.xlsx')
+beer2 <- readxl::read_excel(sheet = "beers", 'week15_beers.xlsx')
+head(beer1)
+head(beer2)
+```
+
+The data sets can be joined using the 'id' variable in beer1 and 'brewery_id' in beer2. The 'abv' variable is the alcohol content and 'ibu' is a measure of bitterness.
+
+### Which states and cities have the most breweries?
+
+Use the beer1 data set to answer these questions.
+
+```{r state, fig.height=8}
+bar1 <- ggplot(beer1, aes(x = state)) + geom_bar(stat = "count") + coord_flip() + theme_ipsum_rc() + labs(x="State", y="Number of breweries",
+       title="Craft beer breweries by state, USA",
+       caption="Source: data.world")
+bar1
+```
+
+Colorado and California have the most breweries. It would be good to calculate the number of breweries per capita using state population data.
+
+```{r cities, fig.height=8,  message=FALSE, warning=FALSE}
+city_20 <- beer1 %>% count(city) %>% top_n(n=20)
+
+bar2 <- ggplot(city_20, aes(x = city, y = n)) + geom_bar(stat = "identity") + coord_flip() +  theme_ipsum_rc() + labs(x="City", y="Number of breweries",
+       title="Craft beer breweries, top 20 cities, USA",
+       caption="Source: data.world")
+bar2
+```
+
+Portland in Oregon has the highest number of breweries.
+
+### Is there a relationship between alcohol content and bitterness?
+
+```{r scatter, fig.height=8, message=FALSE, warning=FALSE}
+#Remove rows with missing values
+beer2clean <- remove_missing(beer2, na.rm = F, vars = names(beer2))
+#Make a scatter plot
+ggplot(beer2clean, aes(abv, ibu)) + geom_point() + geom_smooth() + theme_ipsum_rc() + labs(x="Alcohol content", y="Bitterness",
+       title="Craft beer, alcohol vs bitterness, USA",
+       caption="Source: data.world")
+```
+
+Bitterness does appear to increase with increasing alcohol content.
+
+#### What does it look like by style of beer?
+
+```{r scatter2, fig.height=12, fig.width=12, message=FALSE, warning=FALSE}
+ggplot(beer2clean, aes(x = abv, y = ibu, color=style)) + geom_point(position = position_jitter ( width = 0.01 , height = 0.09 ), alpha = 0.4 , shape = 16 , size = 1.5) + theme_ipsum_rc() + theme(legend.position="bottom") + labs(x="Alcohol content", y="Bitterness",
+       title="Craft beer, alcohol vs bitterness by style, USA",
+       caption="Source: data.world")
+```
+
+The American style beers seem to have higher bitterness, particularly as the alcohol content increases.
+
+#### Filter data to include only styles of beer containing the word American
+```{r American style, fig.height=8, message=FALSE, warning=FALSE}
+American <- beer2clean %>% filter(str_detect(style, "American"))
+head(American)
+ggplot(American, aes(abv, ibu)) + geom_point(color="yellow3") + geom_smooth() + theme_ipsum_rc() + labs(x="Alcohol content", y="Bitterness",
+       title="Craft beer American style, alcohol vs bitterness, USA",
+       caption="Source: data.world")
+```
+
+#### Filter data to include only styles of beer containing the word English
+```{r English style, fig.height=8, message=FALSE, warning=FALSE}
+English <- beer2clean %>% filter(str_detect(style, "English"))
+head(English)
+ggplot(English, aes(abv, ibu)) + geom_point(color="blue") + geom_smooth() + theme_ipsum_rc() + labs(x="Alcohol content", y="Bitterness",
+       title="Craft beer English style, alcohol vs bitterness, USA",
+       caption="Source: data.world")
+```
+
