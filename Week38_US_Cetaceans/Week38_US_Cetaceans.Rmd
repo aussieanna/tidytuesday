@@ -1,0 +1,187 @@
+---
+title: "Cetaceans in the US"
+author: "Anna Reynolds"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+output: 
+  rmarkdown::html_document:
+    code_folding: show
+    theme: sandstone
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+The data for week 38 2018 #TidyTuesday contains data on the capture of cetaceans in the US described in an article by [The Pudding](https://pudding.cool/2017/07/cetaceans/) published in July 2017.
+
+## Load data
+```{r load, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(summarytools)
+library(here)
+library(janitor)
+library(knitr)
+library(ggthemr)
+library(ggridges)
+library(ggalluvial)
+library(paletteer)
+library(scico)
+#Import data
+cetaceans <- read_csv(here("cetacean_us.csv")) %>% clean_names()
+kable(head(cetaceans[,1:7])) 
+#Set theme
+ggthemr(palette = "sky", set_theme = TRUE)
+#View a summary of the data frame
+view(dfSummary(cetaceans))
+
+# set colors
+sc_pal <- scico::scico(10, palette = "tokyo")[c(1, 4, 6)]
+sc_pal2 <- scico::scico(10, palette = "devon")[c(1, 4, 6, 8)]
+```
+
+## Analysis/visualization
+### What is the distribution over time of animals rescued, captured or born?
+
+```{r density plot, warning=FALSE, message=FALSE}
+#Filter data to those either born, captured or rescued
+cetaceans2 <- cetaceans %>% filter(acquisition == "Capture" | acquisition == "Born" | acquisition == "Rescue")
+#Density plot
+ggplot(cetaceans2, aes(x = origin_date, y = acquisition, fill = acquisition)) + geom_density_ridges(scale = 0.9, alpha = 0.7, quantile_lines = TRUE, quantiles = 2) + guides(colour = FALSE) +
+  theme_minimal() +
+  labs(x = "Date of Acquisition",
+       y = "",
+       title = "Cetaceans in captivity in the US, by acquisition method",
+       caption = "Sources: FOIA, Ceta-Base; collected by Amber Thomas") +
+  scale_fill_manual(
+    values = sc_pal,
+    guide = guide_legend(title.vjust = .2,
+                         label.position = "top",
+                         keyheight = unit(4, units = "mm"),
+                         keywidth=unit(14, units = "mm"), 
+                         nrow = 1,
+                         reverse = TRUE)) +
+  theme(legend.position = "top") + 
+  guides ( fill = guide_legend ( title = NULL ))
+```
+
+```{r density plot + strip, warning=FALSE, message=FALSE}
+ggplot(cetaceans2, aes(x = origin_date, y = acquisition, fill = acquisition)) +
+  geom_density_ridges(
+    jittered_points = TRUE,
+    position = position_points_jitter(width = 0.05, height = 0),
+    point_shape = '|', point_size = 3, point_alpha = 1, alpha = 0.7
+  ) +
+  theme_minimal() +
+  labs(x = "Date of Acquisition",
+       y = "",
+       title = "Cetaceans in captivity in the US, by acquisition method",
+       caption = "Sources: FOIA, Ceta-Base; collected by Amber Thomas") + 
+  theme ( legend.position = "none" ) +
+  scale_fill_manual(
+    values = sc_pal)
+```
+
+
+### What was the outcome for animals rescued or captured?
+```{r sankey, fig.height=10, fig.wdith=16, message=FALSE, warning=FALSE}
+library(colorblindr)
+summary <- cetaceans2 %>% filter(status %in% c("Alive", "Died", "Escaped", "Released")) %>%  mutate(status = fct_lump(status, n = 9)) %>% group_by(acquisition, status) %>% summarise(n = n())
+
+sankey <-
+  ggplot(summary, aes(y = n, axis1 = acquisition, axis2 = status)) + geom_alluvium(aes(fill = status)) + geom_stratum(fill = "lightgrey", color = "white", size = 1) + geom_text(stat = "stratum", label.strata =
+  T) + theme_minimal() + labs(
+  x = " ",
+  y = " ",
+  title = "Cetaceans in captivity in the US, by acquisition method and outcome",
+  caption = "Sources: FOIA, Ceta-Base; collected by Amber Thomas",
+  fill = "Outcome"
+  ) + theme (panel.grid.major = element_blank (),
+  panel.grid.minor = element_blank ()) +
+  scale_fill_manual(
+    values = sc_pal2,
+    guide = guide_legend(title.vjust = .2,
+                         label.position = "top",
+                         keyheight = unit(4, units = "mm"),
+                         keywidth=unit(14, units = "mm"), 
+                         nrow = 1,
+                         reverse = TRUE)) +
+  theme(legend.position = "top") + scale_y_continuous ( breaks = NULL ) + scale_x_continuous ( breaks = NULL )
+
+sankey
+
+```
+
+```{r import silhouettes}
+library(rphylopic)
+dolphin <- name_search(text = "Bottlenose dolphin", options = "namebankID")[[1]]
+orca <- name_search(text = "Orca", options = "namebankID")[[1]]
+dolphin_image <- image_data("6682f694-1c10-4386-a6e5-361581400f15", size = 128)[[1]]
+```
+
+```{r}
+#Top 10 species by acquisition method
+species_10  <- cetaceans2 %>% group_by(acquisition, species) %>% summarise(species_n = n()) %>% top_n(species_n,n=10)
+bar <- ggplot(species_10, aes(reorder(species, species_n), y = species_n)) + geom_bar(stat = "identity") + coord_flip() +
+  add_phylopic(dolphin_image) +
+  labs(x = "",
+       y = "Number of animals",
+       title = "Cetaceans in captivity in the US",
+       caption = "Sources: FOIA, Ceta-Base; collected by Amber Thomas") 
+bar
+bar + facet_wrap ( ~ acquisition, scales = "free_x")
+```
+
+## Results
++ Capture of cetaceans declined during the 1990's and they were more likely to be rescued or born in captivity
++ A high proportion of captured cetaceans died
++ Bottlenose dolphins are the most common cetaceans in captivity in the US
+
+## Package citations
+
+  Ciaran Tobin (NA). ggthemr: Themes for ggplot2. R package version 1.1.0.
+
+  Hadley Wickham (2017). tidyverse: Easily Install and Load the
+  'Tidyverse'. R package version 1.2.1.
+  https://CRAN.R-project.org/package=tidyverse
+  
+  Hadley Wickham (2018). stringr: Simple, Consistent Wrappers for Common
+  String Operations. R package version 1.3.0.
+  https://CRAN.R-project.org/package=stringr
+  
+  Yihui Xie (2018). knitr: A General-Purpose Package for Dynamic Report
+  Generation in R. R package version 1.20.
+  
+  Scott Chamberlain (2018). rphylopic: Get 'Silhouettes' of
+  'Organisms' from 'Phylopic'. R package version 0.2.0.
+  https://CRAN.R-project.org/package=rphylopic
+  
+  Dominic Comtois (2018). summarytools: Tools to Quickly and Neatly
+  Summarize Data. R package version 0.8.8.
+  https://CRAN.R-project.org/package=summarytools
+  
+  Sam Firke (2018). janitor: Simple Tools for Examining and Cleaning
+  Dirty Data. R package version 1.1.1.
+  https://CRAN.R-project.org/package=janitor
+  
+  Claus O. Wilke (2018). ggridges: Ridgeline Plots in 'ggplot2'. R
+  package version 0.5.0. https://CRAN.R-project.org/package=ggridges
+  
+  Jason Cory Brunson (2018). ggalluvial: Alluvial Diagrams in
+  'ggplot2'. R package version 0.9.0.
+  https://CRAN.R-project.org/package=ggalluvial
+  
+
+```{r citation, echo=FALSE, eval=FALSE}
+citation("rphylopic")
+citation("ggthemr")
+citation("tidyverse")
+citation("stringr")
+citation("knitr")
+citation("summarytools")
+citation("janitor")
+citation("ggridges")
+citation("ggalluvial")
+citation("scico")
+```
+
